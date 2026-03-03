@@ -1,0 +1,88 @@
+﻿STATUS=OK
+DATE_UTC=2026-03-03T13:09:08Z
+URL=https://127.0.0.1/svn/demo-repo
+USERNAME=svntest
+PASSWORD=SvnTest@123
+--- XML ---
+<?xml version="1.0" encoding="UTF-8"?>
+<lists>
+<list
+   path="https://127.0.0.1/svn/demo-repo">
+<entry
+   kind="file">
+<name>README.md</name>
+<size>17</size>
+<commit
+   revision="1">
+<author>svntest</author>
+<date>2026-03-03T13:07:06.742425Z</date>
+</commit>
+</entry>
+<entry
+   kind="dir">
+<name>assets</name>
+<commit
+   revision="1">
+<author>svntest</author>
+<date>2026-03-03T13:07:06.742425Z</date>
+</commit>
+</entry>
+<entry
+   kind="dir">
+<name>assets/img</name>
+<commit
+   revision="1">
+<author>svntest</author>
+<date>2026-03-03T13:07:06.742425Z</date>
+</commit>
+</entry>
+<entry
+   kind="file">
+<name>assets/img/logo.txt</name>
+<size>24</size>
+<commit
+   revision="1">
+<author>svntest</author>
+<date>2026-03-03T13:07:06.742425Z</date>
+</commit>
+</entry>
+<entry
+   kind="dir">
+<name>src</name>
+<commit
+   revision="1">
+<author>svntest</author>
+<date>2026-03-03T13:07:06.742425Z</date>
+</commit>
+</entry>
+<entry
+   kind="dir">
+<name>src/api</name>
+<commit
+   revision="1">
+<author>svntest</author>
+<date>2026-03-03T13:07:06.742425Z</date>
+</commit>
+</entry>
+<entry
+   kind="file">
+<name>src/api/users.json</name>
+<size>37</size>
+<commit
+   revision="1">
+<author>svntest</author>
+<date>2026-03-03T13:07:06.742425Z</date>
+</commit>
+</entry>
+<entry
+   kind="file">
+<name>src/main.js</name>
+<size>26</size>
+<commit
+   revision="1">
+<author>svntest</author>
+<date>2026-03-03T13:07:06.742425Z</date>
+</commit>
+</entry>
+</list>
+</lists>

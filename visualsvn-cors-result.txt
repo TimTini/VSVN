@@ -1,0 +1,3 @@
+﻿STATUS=ERROR
+DATE_UTC=2026-03-03T13:22:26Z
+ERROR=  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
