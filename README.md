@@ -41,6 +41,14 @@ Mục tiêu là chạy không cần backend, thao tác trực tiếp trong exten
 7. Nhấn `Fetch cấu trúc`.
 8. Nếu muốn tải toàn bộ, bấm `Download to folder` rồi chọn thư mục đích khi trình duyệt hỏi quyền.
 
+## Public Web Page
+
+Repo đã có workflow deploy GitHub Pages tại:
+- `.github/workflows/deploy-pages.yml`
+
+URL public (sau khi workflow chạy thành công):
+- `https://timtini.github.io/VSVN/`
+
 ## Lưu ý quan trọng
 
 - Không có request telemetry/tracking.
