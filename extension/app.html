@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VSVN Extension Page</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <h1 class="title">VSVN Structure Viewer</h1>
+      <p class="subtitle">
+        Trang extension de fetch, xem cay thu muc, va download mirror tu SVN.
+      </p>
+    </header>
+
+    <section class="card">
+      <form id="authForm" autocomplete="on">
+        <div class="row">
+          <div>
+            <label for="svnUrl">SVN URL</label>
+            <input
+              id="svnUrl"
+              name="svn_url"
+              type="url"
+              autocomplete="url"
+              placeholder="https://svn.example.com/repo/project/"
+              required
+            />
+          </div>
+          <div>
+            <label for="svnUser">Username</label>
+            <input
+              id="svnUser"
+              name="username"
+              autocomplete="username"
+              placeholder="your_user"
+            />
+          </div>
+          <div>
+            <label for="svnPass">Password</label>
+            <input
+              id="svnPass"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              placeholder="your_password"
+            />
+          </div>
+          <div>
+            <label for="scanDepth">Depth quet thu muc</label>
+            <input
+              id="scanDepth"
+              name="scan_depth"
+              type="number"
+              min="-1"
+              step="1"
+              value="10"
+              placeholder="10"
+            />
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="fetchBtn" type="submit">Fetch cau truc</button>
+          <button id="downloadBtn" type="button">Download to folder</button>
+          <button id="clearBtn" type="button" class="secondary">Xoa ket qua</button>
+        </div>
+      </form>
+      <div class="hint">
+        <code>Depth = 10</code> la mac dinh, <code>Depth = -1</code> la quet khong gioi han.
+        Cache phien nam trong RAM va se mat khi refresh tab.
+        Nut download dung <code>File System Access API</code> de luu file vao thu muc ban chon.
+      </div>
+    </section>
+
+    <section class="card">
+      <p id="status" class="status">Chua co du lieu.</p>
+      <div id="treeWrap" class="tree-box">
+        <div class="tree-inline-tools">
+          <button id="toggleSearchBtn" type="button" class="icon-btn secondary" title="Mo/tat search">🔎</button>
+          <input id="treeSearch" type="text" class="tree-search hidden" placeholder="Search/filter va highlight..." />
+          <button id="clearSearchBtn" type="button" class="icon-btn secondary hidden" title="Xoa search">✖</button>
+          <span id="searchMeta" class="tree-search-meta">Chua co du lieu de search.</span>
+        </div>
+        <div id="treeBody">
+          <p class="empty">Nhan "Fetch cau truc" de tai cay thu muc SVN.</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

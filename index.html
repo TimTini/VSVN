@@ -76,7 +76,7 @@
 
     .row {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 10px;
     }
 
@@ -277,6 +277,18 @@
                 placeholder="your_password"
               />
             </div>
+            <div>
+              <label for="scanDepth">Depth quét thư mục</label>
+              <input
+                id="scanDepth"
+                name="scan_depth"
+                type="number"
+                min="-1"
+                step="1"
+                value="10"
+                placeholder="10"
+              />
+            </div>
           </div>
 
           <div class="actions">
@@ -286,6 +298,7 @@
         </form>
         <div class="hint">
           Gợi ý: Password Manager thường hoạt động tốt nhất khi chạy trang qua HTTP/HTTPS thay vì <code>file://</code>.
+          <code>Depth = 10</code> là mặc định, <code>Depth = -1</code> là quét không giới hạn.
         </div>
       </section>
 
@@ -305,10 +318,12 @@
     const svnUrl = document.getElementById("svnUrl");
     const svnUser = document.getElementById("svnUser");
     const svnPass = document.getElementById("svnPass");
+    const scanDepth = document.getElementById("scanDepth");
     const fetchBtn = document.getElementById("fetchBtn");
     const clearBtn = document.getElementById("clearBtn");
     const statusNode = document.getElementById("status");
     const treeWrap = document.getElementById("treeWrap");
+    const sessionFetchCache = new Map();
 
     function ensureTrailingSlash(url) {
       return url.endsWith("/") ? url : `${url}/`;
@@ -390,67 +405,219 @@
       }
     }
 
-    async function fetchSvnIndexRecursive(rootUrl, headers) {
-      const visited = new Set();
-      const paths = [];
+    function parseScanDepth(value) {
+      const text = String(value).trim();
+      if (!text) return 10;
 
-      async function crawl(currentUrl, relPrefix) {
-        const normalized = ensureTrailingSlash(currentUrl);
-        if (visited.has(normalized)) return;
-        visited.add(normalized);
+      const parsed = Number(text);
+      if (!Number.isInteger(parsed) || parsed < -1) {
+        throw new Error("Depth phải là số nguyên >= -1.");
+      }
+      return parsed;
+    }
 
-        const response = await fetch(normalized, {
-          method: "GET",
-          headers,
-          mode: "cors",
-          credentials: "omit",
+    function decodeSafe(value) {
+      try {
+        return decodeURIComponent(value);
+      } catch (_) {
+        return value;
+      }
+    }
+
+    function getNameFromHref(href) {
+      const withoutQuery = href.split("?")[0].split("#")[0];
+      const withoutTrailing = withoutQuery.endsWith("/") ? withoutQuery.slice(0, -1) : withoutQuery;
+      const segments = withoutTrailing.split("/").filter(Boolean);
+      return segments.length ? decodeSafe(segments[segments.length - 1]) : "";
+    }
+
+    function parseSvnIndexXmlEntries(text) {
+      const xmlDoc = new DOMParser().parseFromString(text, "application/xml");
+      const parserError = xmlDoc.querySelector("parsererror");
+      if (parserError) return null;
+
+      const indexNode = xmlDoc.querySelector("svn > index");
+      if (!indexNode) return null;
+
+      const entries = [];
+      Array.from(indexNode.children).forEach((node) => {
+        const tag = String(node.tagName || "").toLowerCase();
+        if (tag !== "file" && tag !== "dir") return;
+
+        const name = (node.getAttribute("name") || "").trim().replace(/\/+$/, "");
+        const href = (node.getAttribute("href") || "").trim();
+        if (!name) return;
+
+        entries.push({
+          type: tag,
+          name,
+          href,
         });
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status} ${response.statusText} at ${normalized}`);
+      });
+      return entries;
+    }
+
+    function parseHtmlDirectoryEntries(text) {
+      const htmlDoc = new DOMParser().parseFromString(text, "text/html");
+      const links = Array.from(htmlDoc.querySelectorAll("a[href]"));
+      if (!links.length) return null;
+      const entries = [];
+      const seen = new Set();
+
+      links.forEach((link) => {
+        const rawHref = (link.getAttribute("href") || "").trim();
+        if (!rawHref) return;
+        if (rawHref === "." || rawHref === ".." || rawHref === "../" || rawHref === "./") return;
+        if (rawHref.startsWith("#") || rawHref.toLowerCase().startsWith("javascript:")) return;
+
+        const cleanedHref = rawHref.split("?")[0].split("#")[0];
+        const textLabel = (link.textContent || "").trim();
+        const fallbackName = getNameFromHref(cleanedHref);
+        const normalizedName = (textLabel || fallbackName).replace(/\/+$/, "").trim();
+        if (!normalizedName || normalizedName === "." || normalizedName === "..") return;
+
+        const isDir = cleanedHref.endsWith("/") || textLabel.endsWith("/");
+        const key = `${isDir ? "dir" : "file"}::${normalizedName}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+
+        entries.push({
+          type: isDir ? "dir" : "file",
+          name: normalizedName,
+          href: cleanedHref,
+        });
+      });
+
+      return entries;
+    }
+
+    function parseDirectoryEntries(text) {
+      const xmlEntries = parseSvnIndexXmlEntries(text);
+      if (xmlEntries !== null) return xmlEntries;
+      return parseHtmlDirectoryEntries(text);
+    }
+
+    function createFetchCacheKey(rootUrl, headers) {
+      const authKey = headers.Authorization || "anonymous";
+      return `${ensureTrailingSlash(rootUrl)}::${authKey}`;
+    }
+
+    function getOrCreateSessionCache(rootUrl, headers) {
+      const key = createFetchCacheKey(rootUrl, headers);
+      if (!sessionFetchCache.has(key)) {
+        sessionFetchCache.set(key, {
+          dirsByUrl: new Map(),
+        });
+      }
+      return sessionFetchCache.get(key);
+    }
+
+    function resolveEntryHref(entryHref, baseUrl, type) {
+      if (!entryHref) return "";
+      const absolute = new URL(entryHref, baseUrl).href;
+      return type === "dir" ? ensureTrailingSlash(absolute) : absolute;
+    }
+
+    function createNetworkPolicy(rootUrl) {
+      const root = new URL(ensureTrailingSlash(rootUrl));
+      return {
+        origin: root.origin,
+      };
+    }
+
+    function normalizeAllowedUrl(candidateUrl, networkPolicy) {
+      if (!candidateUrl) return "";
+
+      let parsed;
+      try {
+        parsed = new URL(candidateUrl);
+      } catch (_) {
+        return "";
+      }
+
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return "";
+      if (parsed.origin !== networkPolicy.origin) return "";
+      parsed.hash = "";
+      return parsed.href;
+    }
+
+    async function fetchSvnIndexRecursive(rootUrl, headers, maxDepth) {
+      const normalizedRoot = ensureTrailingSlash(rootUrl);
+      const networkPolicy = createNetworkPolicy(normalizedRoot);
+      const cacheEntry = getOrCreateSessionCache(normalizedRoot, headers);
+      const pathsSet = new Set();
+      const queue = [{ url: normalizedRoot, rel: "", depth: 0 }];
+      const visitedInRun = new Set();
+      let fetchedDirs = 0;
+
+      while (queue.length) {
+        const current = queue.shift();
+        const currentUrl = normalizeAllowedUrl(ensureTrailingSlash(current.url), networkPolicy);
+        if (!currentUrl) continue;
+        if (visitedInRun.has(currentUrl)) continue;
+        visitedInRun.add(currentUrl);
+
+        let dirEntries = cacheEntry.dirsByUrl.get(currentUrl);
+        if (!dirEntries) {
+          const response = await fetch(currentUrl, {
+            method: "GET",
+            headers,
+            mode: "cors",
+            credentials: "omit",
+          });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status} ${response.statusText} at ${currentUrl}`);
+          }
+
+          const responseText = await response.text();
+          const parsedEntries = parseDirectoryEntries(responseText);
+          if (parsedEntries === null) {
+            throw new Error(`Không nhận diện được định dạng danh sách tại ${currentUrl}`);
+          }
+
+          dirEntries = parsedEntries.map((entry) => {
+            const resolved = resolveEntryHref(entry.href, currentUrl, entry.type);
+            return {
+              type: entry.type,
+              name: entry.name,
+              absHref: normalizeAllowedUrl(resolved, networkPolicy),
+            };
+          });
+          cacheEntry.dirsByUrl.set(currentUrl, dirEntries);
+          fetchedDirs += 1;
         }
 
-        const xmlText = await response.text();
-        const doc = new DOMParser().parseFromString(xmlText, "application/xml");
-        const parserError = doc.querySelector("parsererror");
-        if (parserError) {
-          throw new Error(`Response không phải XML hợp lệ tại ${normalized}`);
-        }
+        dirEntries.forEach((entry) => {
+          if (entry.type === "dir") {
+            const fallback = ensureTrailingSlash(new URL(entry.name, currentUrl).href);
+            const dirUrl = normalizeAllowedUrl(entry.absHref || fallback, networkPolicy);
+            if (!dirUrl) return;
 
-        const indexNode = doc.querySelector("svn > index");
-        if (!indexNode) {
-          throw new Error(`Response không phải SVN index XML tại ${normalized}`);
-        }
+            const relPath = `${current.rel}${entry.name}/`;
+            pathsSet.add(relPath);
 
-        const nextDirs = [];
-        Array.from(indexNode.children).forEach((node) => {
-          const tag = String(node.tagName || "").toLowerCase();
-          if (tag !== "file" && tag !== "dir") return;
-
-          const name = (node.getAttribute("name") || "").trim();
-          const href = (node.getAttribute("href") || "").trim();
-          if (!name) return;
-
-          if (tag === "file") {
-            paths.push(`${relPrefix}${name}`);
+            if (maxDepth === -1 || current.depth < maxDepth) {
+              queue.push({
+                url: dirUrl,
+                rel: relPath,
+                depth: current.depth + 1,
+              });
+            }
             return;
           }
 
-          paths.push(`${relPrefix}${name}/`);
-          if (href) {
-            nextDirs.push({
-              url: new URL(href, normalized).href,
-              rel: `${relPrefix}${name}/`,
-            });
-          }
+          const fileFallback = new URL(entry.name, currentUrl).href;
+          const fileUrl = normalizeAllowedUrl(entry.absHref || fileFallback, networkPolicy);
+          if (!fileUrl) return;
+          const relPath = `${current.rel}${entry.name}`;
+          pathsSet.add(relPath);
         });
-
-        for (const dir of nextDirs) {
-          await crawl(dir.url, dir.rel);
-        }
       }
 
-      await crawl(rootUrl, "");
-      return paths;
+      return {
+        paths: Array.from(pathsSet),
+        fetchedDirs,
+      };
     }
 
     function buildTree(paths) {
@@ -562,7 +729,8 @@
 
     function renderTree(paths) {
       if (!paths.length) {
-        treeWrap.innerHTML = '<p class="empty">Không tìm thấy file/folder trong SVN index.</p>';
+        treeWrap.innerHTML = '<p class="empty">Không tìm thấy file/folder trong danh sách thư mục.</p>';
+        setStatus("Tổng: 0 folder, 0 file.", "ok");
         return;
       }
 
@@ -591,14 +759,27 @@
 
       let url;
       try {
-        url = new URL(rawUrl).href;
+        const parsed = new URL(rawUrl);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+          setStatus("Lỗi: Chỉ hỗ trợ SVN URL với giao thức http/https.", "error");
+          return;
+        }
+        url = parsed.href;
       } catch (_) {
         setStatus("Lỗi: SVN URL không hợp lệ.", "error");
         return;
       }
 
+      let depthValue;
+      try {
+        depthValue = parseScanDepth(scanDepth.value);
+      } catch (err) {
+        setStatus(`Lỗi: ${err.message}`, "error");
+        return;
+      }
+
       cacheSvnUrl();
-      setStatus("Đang fetch cấu trúc...", "info");
+      setStatus(`Đang fetch cấu trúc (depth: ${depthValue})...`, "info");
       fetchBtn.disabled = true;
 
       const headers = {};
@@ -607,8 +788,13 @@
       }
 
       try {
-        const paths = await fetchSvnIndexRecursive(url, headers);
-        renderTree(paths);
+        const result = await fetchSvnIndexRecursive(url, headers, depthValue);
+        renderTree(result.paths);
+        if (result.fetchedDirs === 0) {
+          setStatus(`${statusNode.textContent} (dùng cache phiên, không fetch mới)`, "ok");
+        } else {
+          setStatus(`${statusNode.textContent} (fetch mới ${result.fetchedDirs} thư mục)`, "ok");
+        }
         await saveBrowserCredential();
       } catch (err) {
         setStatus(`Fetch thất bại: ${err.message}. Có thể do CORS/SSL/Auth.`, "error");

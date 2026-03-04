@@ -1,0 +1,209 @@
+:root {
+  --bg-0: #070b11;
+  --bg-1: #0d1420;
+  --panel: rgba(11, 17, 27, 0.82);
+  --panel-strong: rgba(16, 24, 37, 0.95);
+  --line: rgba(126, 156, 191, 0.2);
+  --line-strong: rgba(126, 156, 191, 0.35);
+  --text: #e7ecf5;
+  --muted: #9ba9be;
+  --accent: #25c2d8;
+  --accent-strong: #0aa5bc;
+  --danger: #ff6f78;
+  --ok: #64d58e;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  width: 760px;
+  max-width: 96vw;
+  font-family: "Bahnschrift", "Segoe UI Variable", "Segoe UI", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 15% 0%, rgba(56, 189, 248, 0.16), transparent 42%),
+    radial-gradient(circle at 90% 10%, rgba(34, 211, 238, 0.12), transparent 34%),
+    linear-gradient(160deg, var(--bg-0) 0%, #05080d 45%, var(--bg-1) 100%);
+}
+
+.page {
+  padding: 12px 12px 14px;
+}
+
+.hero {
+  margin-bottom: 10px;
+}
+
+.title {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: 0.3px;
+  font-weight: 700;
+}
+
+.subtitle {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.card {
+  border: 1px solid var(--line);
+  background: linear-gradient(185deg, rgba(18, 27, 41, 0.96), var(--panel));
+  border-radius: 12px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+input,
+button {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--line-strong);
+  font-size: 13px;
+  padding: 8px 10px;
+  color: var(--text);
+  font-family: inherit;
+  outline: none;
+}
+
+input {
+  background: rgba(8, 13, 20, 0.78);
+}
+
+input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(37, 194, 216, 0.16);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+button {
+  cursor: pointer;
+  width: auto;
+  min-width: 120px;
+  background: linear-gradient(160deg, var(--accent), var(--accent-strong));
+  border: 0;
+  color: #031217;
+  font-weight: 700;
+  transition: filter 0.15s ease;
+}
+
+button:hover {
+  filter: brightness(1.08);
+}
+
+button.secondary {
+  background: rgba(126, 156, 191, 0.15);
+  color: var(--text);
+  border: 1px solid var(--line-strong);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.35);
+  opacity: 0.7;
+}
+
+.hint {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.status {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.status.error {
+  color: var(--danger);
+}
+
+.status.ok {
+  color: var(--ok);
+}
+
+.tree-box {
+  margin-top: 9px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  background: var(--panel-strong);
+  min-height: 120px;
+  max-height: 380px;
+  overflow: auto;
+}
+
+.empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+ul.tree,
+ul.tree ul {
+  list-style: none;
+  margin: 0;
+  padding-left: 18px;
+}
+
+ul.tree {
+  padding-left: 0;
+}
+
+.node {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  line-height: 1.7;
+  color: #dce8f8;
+  font-size: 13px;
+}
+
+.folder > .node {
+  font-weight: 600;
+}
+
+.toggle {
+  width: 14px;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.leaf-marker {
+  width: 14px;
+  color: transparent;
+  user-select: none;
+}
+
+.node-type {
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 0.4px;
+}
