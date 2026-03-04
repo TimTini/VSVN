@@ -59,6 +59,16 @@ Mục tiêu là chạy không cần backend, thao tác trực tiếp trong exten
 node test-html-listing-server.js --root ./svn-local/seed --port 8787
 ```
 
+Để test luôn luồng auth (`Username/Password`), chạy:
+
+```bash
+node test-html-listing-server.js --root ./svn-local/seed --port 8787 --user demo --pass demo123
+```
+
+Thông tin đăng nhập mẫu:
+- Username: `demo`
+- Password: `demo123`
+
 Mở URL:
 - `http://127.0.0.1:8787/`
 

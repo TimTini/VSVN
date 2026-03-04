@@ -11,6 +11,8 @@ function parseArgs(argv) {
     host: "127.0.0.1",
     port: 8787,
     root: path.resolve(process.cwd(), "svn-local", "seed"),
+    user: "",
+    pass: "",
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -30,6 +32,16 @@ function parseArgs(argv) {
       i += 1;
       continue;
     }
+    if (arg === "--user" && argv[i + 1]) {
+      options.user = String(argv[i + 1]);
+      i += 1;
+      continue;
+    }
+    if (arg === "--pass" && argv[i + 1]) {
+      options.pass = String(argv[i + 1]);
+      i += 1;
+      continue;
+    }
   }
 
   if (!Number.isInteger(options.port) || options.port < 1 || options.port > 65535) {
@@ -37,6 +49,26 @@ function parseArgs(argv) {
   }
 
   return options;
+}
+
+function parseBasicAuthHeader(authHeader) {
+  if (!authHeader || typeof authHeader !== "string") return null;
+  const parts = authHeader.split(" ");
+  if (parts.length !== 2 || String(parts[0]).toLowerCase() !== "basic") return null;
+
+  let decoded = "";
+  try {
+    decoded = Buffer.from(parts[1], "base64").toString("utf8");
+  } catch (_) {
+    return null;
+  }
+
+  const colonIndex = decoded.indexOf(":");
+  if (colonIndex < 0) return null;
+  return {
+    user: decoded.slice(0, colonIndex),
+    pass: decoded.slice(colonIndex + 1),
+  };
 }
 
 function htmlEscape(value) {
@@ -120,6 +152,8 @@ async function createServer(options) {
     throw new Error(`Root folder does not exist or is not a directory: ${options.root}`);
   }
 
+  const authEnabled = options.user.length > 0 || options.pass.length > 0;
+
   const server = http.createServer(async (req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
@@ -135,6 +169,17 @@ async function createServer(options) {
       res.statusCode = 405;
       res.end("Method Not Allowed");
       return;
+    }
+
+    if (authEnabled) {
+      const provided = parseBasicAuthHeader(req.headers.authorization || "");
+      const valid = provided && provided.user === options.user && provided.pass === options.pass;
+      if (!valid) {
+        res.statusCode = 401;
+        res.setHeader("WWW-Authenticate", 'Basic realm="VSVN Test Listing", charset="UTF-8"');
+        res.end("Unauthorized");
+        return;
+      }
     }
 
     const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
@@ -205,6 +250,11 @@ async function main() {
     console.log("[html-listing-server] started");
     console.log(`  Root: ${options.root}`);
     console.log(`  URL : http://${options.host}:${options.port}/`);
+    if (options.user || options.pass) {
+      console.log(`  Auth: Basic (${options.user || "<empty-user>"} / ${options.pass || "<empty-pass>"})`);
+    } else {
+      console.log("  Auth: disabled");
+    }
     console.log("  Stop: Ctrl+C");
   });
 }
