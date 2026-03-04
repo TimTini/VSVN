@@ -97,7 +97,6 @@ Server này trả về dạng:
 - `extension/app.html`: giao diện chính.
 - `extension/app.css`: style trang extension.
 - `extension/app.js`: logic fetch/crawl/render/cache/download.
-- `extension/popup.*`: bản cũ (không dùng mặc định).
 - `index.html`: bản standalone cũ.
 - `test-html-listing-server.js`: server local trả về HTML directory listing để test.
 - `setup-visualsvn-http.ps1`: script hỗ trợ setup VisualSVN HTTP.
